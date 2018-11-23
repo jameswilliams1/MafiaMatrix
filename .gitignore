@@ -20,6 +20,7 @@ Thumbs.db
 
 #PyInstaller
 /dist
+.spec
 
 #login/other files
 .txt
