@@ -8,7 +8,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 import sys
 import os
-from random import randrange
+from random import randrange, choice
 import requests
 
 
@@ -60,7 +60,6 @@ API_KEY = '' # 2captcha API KEY
 site_key = '6LeLBQwTAAAAAEjOl7RVSY-x9mxPOxSOSkkR24aY'  # site-key
 url = 'https://mafiamatrix.com/'
 s = requests.Session()
-target_job = ''
 
 try:
     with open('login.txt', 'r') as f:
@@ -74,6 +73,7 @@ except IOError:
     with open('login.txt', 'w') as f:
         f.write(email + '\n' + password + '\n' + API_KEY)
 
+target_job = input('Enter target job: ')
 
 def fill_log_in(driver):
     sleep(rand(2, 5))
@@ -90,20 +90,24 @@ def solve_captcha(driver, url, API_KEY, site_key):
     # post site key to 2captcha to get captcha ID (and parse it)
     captcha_id_pre = s.get("http://2captcha.com/in.php?key={}&method=userrecaptcha&googlekey={}&pageurl={}".format(API_KEY, site_key, url))
     captcha_id = captcha_id_pre.text.split('|')[1]
-    print("Captcha ID: " + captcha_id)
-    print("Solving captcha...")
+    #print("Captcha ID: " + captcha_id)
+    print("Solving captcha, this may take a moment...")
     sleep(20)
     # parse gresponse from 2captcha response
     recaptcha_answer = s.get("http://2captcha.com/res.php?key={}&action=get&id={}".format(API_KEY, captcha_id)).text
-    print("API response: " + recaptcha_answer)
+    #print("API response: " + recaptcha_answer)
+    counter = 0
     while 'CAPCHA_NOT_READY' in recaptcha_answer:
+        if counter > 25:
+            print('API failed to send a captcha code')
+            return
         sleep(5)
         recaptcha_answer = s.get("http://2captcha.com/res.php?key={}&action=get&id={}".format(API_KEY, captcha_id)).text
-        print(recaptcha_answer)
+        #print(recaptcha_answer)
         if('CAPCHA_NOT_READY' not in recaptcha_answer):
             recaptcha_answer = recaptcha_answer.split('|')[1]
 
-    print("Success!")
+    print("Captcha code obtained, attempting login...")
     driver.execute_script("document.getElementById('g-recaptcha-response').style.display = 'block';")
     sleep(rand(2, 5))
     driver.find_element_by_id('g-recaptcha-response').send_keys(recaptcha_answer)
@@ -129,6 +133,7 @@ def hasAttribute(element, attribute): #check if certain attribute present
     return result
 
 def log_in_play(driver):
+    print('Attempting login...')
     driver.get(url)
     #log in and solve captcha
     fill_log_in(driver)
@@ -149,6 +154,7 @@ def log_in_play(driver):
 
     #click play
     driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[3]/div[2]/table/tbody/tr/td[2]/div/table[5]/tbody/tr/td/div/a').click()
+    print('Success!')
     sleep(rand(3, 5))
     #click income
     #driver.find_element_by_xpath('/html/body/div[4]/div[3]/p[5]/a[1]').click()
@@ -159,26 +165,33 @@ def do_job(driver):
     driver.get('https://mafiamatrix.com/income/earn.asp') #earns page
     sleep(rand(4, 8))
     job_list = driver.find_elements_by_tag_name('input') #get all jobs
-
-
-
-
-
-    
+    target_jobs_list = []
+    target_job_el = ''
+    target_chosen = False
+    print('Finding jobs matching: %s' % target_job)
     for job in job_list:
-        job_id = job.get_attribute('id')
-        job_type = job.get_attribute('type')
-        if(job_id == 'Timeout' or job_type == 'hidden'):
+        if(job.get_attribute('id') == 'Timeout' or job.get_attribute('type') == 'hidden'):
             continue
         else:
-            job.click()
-            sleep(rand(2, 4))
-            driver.find_element_by_xpath('/html/body/div[4]/div[4]/div[1]/div[2]/form/p/input').click()
+            target_jobs_list.append(job)
+    for job in target_jobs_list:
+        if target_job.lower() in job.get_attribute('id').lower():
+            target_job_el = job
+            target_chosen = True
             break
+    if not target_chosen:
+        target_job_el = choice(target_jobs_list)
+        print('Could not find jobs matching %s, choosing a random job' % target_job)
+    target_job_el.click()
+    sleep(rand(2, 4))
+    driver.find_element_by_xpath('/html/body/div[4]/div[4]/div[1]/div[2]/form/p/input').click()
+
+
 
 def check_earn_options(driver): #check if pop up blocks earn
     sleep(rand(8, 12))
     if (EC.presence_of_element_located((By.XPATH, '//*[@id="earns_options"]'))):
+        print('Solving job test...')
         earn_options = driver.find_elements_by_tag_name('input')
         for earn_option in earn_options:
             try:
@@ -190,6 +203,7 @@ def check_earn_options(driver): #check if pop up blocks earn
                     earn_option.click()
                     sleep(rand(2, 3))
                     driver.find_element_by_xpath('/html/body/div[4]/div[4]/div[1]/div[2]/form/p/input').click()
+                    print('Success!')
                     break
             except:
                 pass
@@ -211,7 +225,7 @@ while 1:
         sleep(rand(2, 5))
         #check for captcha
         if("Click the button to confirm you're not a bot or a script" in driver.page_source):
-            print("Captcha test: " + driver.current_url)
+            print("Random captcha test: " + driver.current_url)
             #sleep(rand(2, 5))
             #solve_captcha(driver, url, API_KEY, site_key)
             #sleep(rand(4, 8))
@@ -238,5 +252,5 @@ while 1:
         sleep(10)
         check_earn_options(driver)
     except Exception as e:
-        print(e)
+        #print(e)
         sleep(10)
