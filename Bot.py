@@ -76,17 +76,21 @@ except IOError:
 target_job = input('Enter target job: ')
 
 def fill_log_in(driver):
+    #actions = ActionChains(driver)
     sleep(rand(2, 5))
     # Enter login
     email_field = driver.find_element_by_xpath('//*[@id="email"]')
+    #actions.move_to_element(email_field).perform()
     delayType(email_field, email)
     sleep(rand(2, 4))
     pass_field = driver.find_element_by_xpath('//*[@id="pass"]')
+    #actions.move_to_element(pass_field).perform()
     delayType(pass_field, password)
     sleep(rand(3, 5))
 
 
 def solve_captcha(driver, url, API_KEY, site_key):
+    #actions = ActionChains(driver)
     # post site key to 2captcha to get captcha ID (and parse it)
     captcha_id_pre = s.get("http://2captcha.com/in.php?key={}&method=userrecaptcha&googlekey={}&pageurl={}".format(API_KEY, site_key, url))
     captcha_id = captcha_id_pre.text.split('|')[1]
@@ -133,34 +137,59 @@ def hasAttribute(element, attribute): #check if certain attribute present
     return result
 
 def log_in_play(driver):
+    actions = ActionChains(driver)
     print('Attempting login...')
     driver.get(url)
+    sleep(2)
+    #driver.execute_script("document.body.style.zoom = '30%'")
+    
+    for i in range(0, 4):
+        #page = driver.find_element_by_tag_name('html')
+        actions.key_down(Keys.CONTROL).send_keys(Keys.SUBTRACT).key_up(Keys.CONTROL).perform()
+
     #log in and solve captcha
     fill_log_in(driver)
     solve_captcha(driver, url, API_KEY, site_key)
+    #driver.execute_script("document.getElementsByTagName('nav').style.display = 'none';")
     sleep(rand(3, 5))
+    driver.execute_script("window.scrollTo(0,3000);")
     driver.find_element_by_xpath('/html/body/div[3]/div/div[3]/div[2]/div[2]/div/div/div/div/div[2]/form/button').click() #login button
+    #actions.move_to_element(login_button).perform()
+    
+    #login_button.click()
     sleep(rand(8, 10))
-    while "Login failed" in driver.page_source:
+    while "Login failed" in driver.page_source or 'You need to be logged on to access these pages.' in driver.page_source:
         print('Login failed, retrying...')
         driver.get(url)
         #log in and solve captcha
         fill_log_in(driver)
         solve_captcha(driver, url, API_KEY, site_key)
         sleep(rand(3, 5))
-        driver.find_element_by_xpath('/html/body/div[3]/div/div[3]/div[2]/div[2]/div/div/div/div/div[2]/form/button').click() #login button
+        driver.execute_script("window.scrollTo(0,3000);")
+        #actions.move_to_element(login_button).click().perform()
+        login_button = driver.find_element_by_xpath('/html/body/div[3]/div/div[3]/div[2]/div[2]/div/div/div/div/div[2]/form/button') #login button
+        login_button.click()
         sleep(rand(5, 8))
 
-
-    #click play
-    driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[3]/div[2]/table/tbody/tr/td[2]/div/table[5]/tbody/tr/td/div/a').click()
-    print('Success!')
+    play_click = False
+    while not play_click:
+        print('Looking for play button...')
+        try:
+            WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '/html/body/div[2]/div[2]/div[3]/div[2]/table/tbody/tr/td[2]/div/table[5]/tbody/tr/td/div/a')))
+            #click play
+            driver.find_element_by_xpath('/html/body/div[2]/div[2]/div[3]/div[2]/table/tbody/tr/td[2]/div/table[5]/tbody/tr/td/div/a').click()
+            #actions.move_to_element(play_button).click().perform()
+            print('Success!')
+            play_click = True
+        except:
+            pass
     sleep(rand(3, 5))
     #click income
     #driver.find_element_by_xpath('/html/body/div[4]/div[3]/p[5]/a[1]').click()
     #sleep(rand(3, 5))
 
 def do_job(driver):
+    #actions = ActionChains(driver)
     #find and click job
     driver.get('https://mafiamatrix.com/income/earn.asp') #earns page
     sleep(rand(4, 8))
@@ -182,6 +211,7 @@ def do_job(driver):
     if not target_chosen:
         target_job_el = choice(target_jobs_list)
         print('Could not find jobs matching %s, choosing a random job' % target_job)
+    #actions.move_to_element(target_job_el).perform()
     target_job_el.click()
     sleep(rand(2, 4))
     driver.find_element_by_xpath('/html/body/div[4]/div[4]/div[1]/div[2]/form/p/input').click()
@@ -189,6 +219,7 @@ def do_job(driver):
 
 
 def check_earn_options(driver): #check if pop up blocks earn
+    #actions = ActionChains(driver)
     sleep(rand(8, 12))
     if (EC.presence_of_element_located((By.XPATH, '//*[@id="earns_options"]'))):
         print('Solving job test...')
@@ -200,9 +231,12 @@ def check_earn_options(driver): #check if pop up blocks earn
                 if(earn_id == 'Timeout' or earn_type == 'hidden'):
                     continue
                 elif earn_type == 'radio':
+                    #actions.move_to_element(earn_option).perform()
                     earn_option.click()
                     sleep(rand(2, 3))
-                    driver.find_element_by_xpath('/html/body/div[4]/div[4]/div[1]/div[2]/form/p/input').click()
+                    submit_button = driver.find_element_by_xpath('/html/body/div[4]/div[4]/div[1]/div[2]/form/p/input')
+                    #actions.move_to_element(submit_button).perform()
+                    submit_button.click()
                     print('Success!')
                     break
             except:
@@ -211,20 +245,21 @@ def check_earn_options(driver): #check if pop up blocks earn
 #profile = get_profile_path("default") #sets bot to users defualt firefox profile
 #profile = webdriver.FirefoxProfile()
 driver = webdriver.Firefox()
-log_in_play(driver)
+driver.maximize_window()
+sleep(2)
 
+log_in_play(driver)
 
 do_job(driver)
 sleep(rand(5, 8))
 check_earn_options(driver)
 sleep(rand(5, 8))
 
-
 while 1:
     try:
         sleep(rand(2, 5))
         #check for captcha
-        if("Click the button to confirm you're not a bot or a script" in driver.page_source):
+        if("Click the button to confirm you're not a bot or a script" in driver.page_source or 'You need to be logged on to access these pages.' in driver.page_source):
             print("Random captcha test: " + driver.current_url)
             #sleep(rand(2, 5))
             #solve_captcha(driver, url, API_KEY, site_key)
